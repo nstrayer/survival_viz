@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+svg text{
+    font-family:optima;
+}
+
+</style>
+<body>
+    <div id = "chart"></div>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+
+<!-- <script src="sliding_hist.js"></script> -->
+
+<script>
+
+//load survival data in.
+
+d3.csv("data.csv", function(raw_data){
+
+// R-Code:
+// > channing$ageentryyear <- channing$ageentry/12
+// > channing$ageyear <- channing$age/12
+
+//Javascript Code:
+var data = raw_data.map(function(d){
+    var new_d = {}
+    new_d.age_entry_year = +d.ageentry/12; //patient start
+    new_d.age_year = +d.age/12;            //patient end
+    new_d.death    = d.death  == "1" ? true : false;
+    new_d.gender   = d.gender == "2" ? "female" : "male"
+    return new_d;
+}).sort((a,b) => b.age_entry_year - a.age_entry_year)
+
+// console.table(data)
+
+//charting code goes here.
+
+var chartWidth  = 960, // default width
+    chartHeight = 500, // default height
+    binWidth    = 10,
+    stepWidth   = 1,
+    fillColor   = "steelblue"
+
+var margin = {top: 20, right: 20, bottom: 30, left: 50},
+    width  = chartWidth - margin.left - margin.right,
+    height = chartHeight - margin.top - margin.bottom;
+
+// var svg = d3.select(this).append("svg") //leaving for when packaged up.
+var svg = d3.select("#chart").append("svg")
+    .attr("width",  width  + margin.left + margin.right)
+    .attr("height", height + margin.top  + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var min_date = d3.min(data, (d) => d.age_entry_year)
+var max_date = d3.max(data, (d) => d.age_year)
+
+var x = d3.scaleLinear()
+    .range([0, width])
+    .domain([min_date, max_date]);
+
+var y = d3.scaleLinear()
+    .range([height, 0])
+    .domain([0,data.length]);
+
+var lines = svg.selectAll(".lifespan")
+    .data(data)
+    .enter().append("line")
+    .attrs({
+        "x1": (d) => x(d.age_entry_year),
+        "x2": (d) => x(d.age_entry_year),
+        "y1": (d,i) => y(i),
+        "y2": (d,i) => y(i),
+        "stroke": (d) => d.death ? "orangered" : "steelblue",
+        "stroke-width": 1
+    })
+    .on("mouseover", highlight)
+    .on("mouseout", unhighlight)
+    .transition().duration(500)
+    .delay(function(d, i) { return (data.length - i) * 5; })
+    .attr("x2", (d) => x(d.age_year))
+
+svg.append("g")
+    .attr("class", "axis axis--x")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x))
+        .append("text")
+        .attrs({
+            "class": "axis-title",
+            "y": 6,
+            "x": width/2,
+            "dy": "0.8em"
+        })
+        .styles({
+            "text-anchor": "center",
+            "fill": "black",
+            "font-size": 15
+        })
+        .text("Time in Years");;
+
+function highlight(){
+
+    individual = d3.select(this);
+
+    individual
+        .attr("stroke-width", "3")
+
+    var ind_data = individual.data()
+        .map(function(d){
+            return {
+                "entry": Math.round(d.age_entry_year),
+                "exit" : Math.round(d.age_year)
+            }
+        })
+    console.log(ind_data)
+}
+
+function unhighlight(){
+    d3.select(this)
+        .attr("stroke-width", "1")
+}
+}) //close csv loader
+
+
+</script>
